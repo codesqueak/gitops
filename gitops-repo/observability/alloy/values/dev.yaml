@@ -1,0 +1,194 @@
+alloy:
+  # The chart's Service only exposes the default http-metrics (12345) port
+  # unless extra ports are listed here - without this, nothing outside the
+  # pod (e.g. Spring Boot apps pushing OTLP) can reach the receiver on
+  # alloy.observability.svc.cluster.local, even though Alloy itself listens
+  # on 4317/4318 fine.
+  extraPorts:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+
+  configMap:
+    content: |
+      // OTLP receiver - accepts telemetry from Spring Boot apps
+      otelcol.receiver.otlp "default" {
+        grpc { endpoint = "0.0.0.0:4317" }
+        http { endpoint = "0.0.0.0:4318" }
+        output {
+          metrics = [otelcol.processor.batch.default.input]
+          logs    = [otelcol.processor.batch.default.input]
+          traces  = [otelcol.processor.batch.default.input]
+        }
+      }
+
+      otelcol.processor.batch "default" {
+        output {
+          metrics = [otelcol.exporter.prometheus.default.input]
+          logs    = [otelcol.exporter.loki.default.input]
+          traces  = [otelcol.exporter.otlp.tempo.input]
+        }
+      }
+
+      // Convert OTLP metrics to Prometheus format and remote write to Mimir
+      otelcol.exporter.prometheus "default" {
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      prometheus.remote_write "mimir" {
+        endpoint {
+          url = "http://mimir-gateway.observability.svc.cluster.local/api/v1/push"
+        }
+        external_labels = {
+          "cluster" = "dev",
+        }
+      }
+
+      // Forward OTLP logs to Loki
+      otelcol.exporter.loki "default" {
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki-gateway.observability.svc.cluster.local/loki/api/v1/push"
+        }
+      }
+
+      // Forward traces to Tempo
+      otelcol.exporter.otlp "tempo" {
+        client {
+          endpoint = "tempo-distributor.observability.svc.cluster.local:4317"
+          tls { insecure = true }
+        }
+      }
+
+      // Kubernetes pod log collection
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // Without this, loki.source.kubernetes has no non-internal labels to
+      // attach, so every stream falls back to the component's own name as
+      // its "job" label - the Logs/App dashboard's app picker (label_values(job))
+      // then shows one meaningless option instead of one per application.
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_container_name"]
+          separator     = "/"
+          target_label  = "job"
+        }
+      }
+
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.write.default.receiver]
+      }
+
+      // Scrape kube-state-metrics
+      prometheus.scrape "kube_state_metrics" {
+        targets    = [{"__address__" = "kube-state-metrics.observability.svc.cluster.local:8080"}]
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // Scrape node-exporter
+      prometheus.scrape "node_exporter" {
+        targets    = [{"__address__" = "node-exporter-prometheus-node-exporter.observability.svc.cluster.local:9100"}]
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // Scrape cAdvisor (container_*/machine_* metrics) directly from each
+      // node's kubelet - required by the Kubernetes/Views/Global dashboard's
+      // per-pod CPU/memory/network panels, which kube-state-metrics and
+      // node-exporter don't provide. The chart's default ClusterRole already
+      // grants "nodes/metrics" get/list/watch, which is what kubelet checks
+      // for direct (non-apiserver-proxied) access to /metrics/cadvisor.
+      discovery.kubernetes "nodes" {
+        role = "node"
+      }
+
+      discovery.relabel "cadvisor" {
+        targets = discovery.kubernetes.nodes.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_node_address_InternalIP"]
+          target_label  = "__address__"
+          replacement   = "${1}:10250"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_node_name"]
+          target_label  = "node"
+        }
+        rule {
+          target_label = "__metrics_path__"
+          replacement  = "/metrics/cadvisor"
+        }
+      }
+
+      prometheus.scrape "cadvisor" {
+        targets           = discovery.relabel.cadvisor.output
+        scheme            = "https"
+        bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        tls_config {
+          // Kubelet's serving cert isn't signed by the cluster CA in kind -
+          // this is the standard tradeoff used in most community kubelet-
+          // scrape examples (auth is still enforced via the bearer token).
+          insecure_skip_verify = true
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // Scrape kubelet's own /metrics endpoint (separate from /metrics/cadvisor
+      // above) - required for the Alloy K8S Microservices dashboard's Persistent
+      // Volume panels, which read kubelet_volume_stats_available_bytes/_used_bytes.
+      // Same node discovery, same RBAC ("nodes/metrics" covers every /metrics*
+      // path kubelet exposes), just a different __metrics_path__.
+      discovery.relabel "kubelet" {
+        targets = discovery.kubernetes.nodes.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_node_address_InternalIP"]
+          target_label  = "__address__"
+          replacement   = "${1}:10250"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_node_name"]
+          target_label  = "node"
+        }
+        rule {
+          target_label = "__metrics_path__"
+          replacement  = "/metrics"
+        }
+      }
+
+      prometheus.scrape "kubelet" {
+        targets           = discovery.relabel.kubelet.output
+        scheme            = "https"
+        bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        tls_config {
+          insecure_skip_verify = true
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+controller:
+  type: daemonset

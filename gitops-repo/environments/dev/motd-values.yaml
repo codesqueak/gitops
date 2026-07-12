@@ -1,0 +1,12 @@
+image:
+  tag: "e0a8a19"
+
+replicaCount: 1
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "750Mi"
+    cpu: "500m"

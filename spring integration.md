@@ -1,0 +1,174 @@
+# Developer Guide
+
+## Purpose
+
+This guide describes the changes required in Spring Boot 4 services to integrate with the observability platform.
+
+## Dependencies
+
+Gradle:
+
+```gradle
+dependencies {
+    implementation "org.springframework.boot:spring-boot-starter-actuator"
+    implementation "org.springframework.boot:spring-boot-starter-opentelemetry"
+    implementation "net.logstash.logback:logstash-logback-encoder:9.0"
+}
+```
+
+## application.properties
+
+```properties
+spring.application.name=customer-service
+
+management.endpoint.health.probes.enabled=true
+management.endpoints.web.exposure.include=health,info,metrics
+
+management.opentelemetry.resource-attributes.service.name=${spring.application.name}
+management.opentelemetry.resource-attributes.service.namespace=ecrebo
+management.opentelemetry.resource-attributes.deployment.environment=${ENVIRONMENT:dev}
+
+management.otlp.metrics.export.enabled=true
+management.otlp.metrics.export.url=http://alloy.observability.svc.cluster.local:4318/v1/metrics
+
+management.otlp.tracing.endpoint=http://alloy.observability.svc.cluster.local:4318/v1/traces
+
+# Default sampling is 10% (management.tracing.sampling.probability=0.1) — most log lines
+# would have no trace_id/span_id. Set to 1.0 for low-traffic dev/staging services; tune
+# down for high-throughput production services once traffic volume is known.
+management.tracing.sampling.probability=1.0
+```
+
+## Kubernetes Configuration
+
+Add:
+
+```yaml
+env:
+  - name: ENVIRONMENT
+    value: production
+```
+
+## Health Probes
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: 8080
+
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 8080
+```
+
+## Structured Logging
+
+Log JSON to stdout.
+
+Recommended fields:
+
+- timestamp
+- level
+- service
+- environment
+- trace_id
+- span_id
+- logger
+- thread
+- message
+
+Add `src/main/resources/logback-spring.xml`. Spring's tracing autoconfiguration (from `spring-boot-starter-opentelemetry`) populates SLF4J MDC with `traceId`/`spanId` (camelCase) for the duration of an active span — the `pattern` provider below reads those MDC keys and re-emits them under the `trace_id`/`span_id` field names listed above. MDC keys are empty outside a request/span context (e.g. startup logs), so `trace_id`/`span_id` will legitimately be blank there.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty scope="context" name="serviceName" source="spring.application.name"/>
+    <springProperty scope="context" name="environment" source="ENVIRONMENT" defaultValue="dev"/>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp/>
+                <logLevel>
+                    <fieldName>level</fieldName>
+                </logLevel>
+                <loggerName>
+                    <fieldName>logger</fieldName>
+                </loggerName>
+                <threadName>
+                    <fieldName>thread</fieldName>
+                </threadName>
+                <message/>
+                <stackTrace/>
+                <pattern>
+                    <pattern>
+                        {
+                          "service": "${serviceName}",
+                          "environment": "${environment}",
+                          "trace_id": "%mdc{traceId:-}",
+                          "span_id": "%mdc{spanId:-}"
+                        }
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>
+```
+
+This has been verified end-to-end in the `motd` service: hitting an endpoint produces log lines with real `trace_id`/`span_id` values, e.g. `{"trace_id":"90caf4931b79e01e244c76339d75415e","span_id":"b2320ab4beda412b", ...}`.
+
+## Business Metrics
+
+Use Micrometer.
+
+Example metrics:
+
+- receipts.processed
+- receipts.failed
+- offers.generated
+- offers.failed
+- till.requests
+- till.failures
+
+Good metric tags:
+
+- service
+- environment
+- channel
+- region
+- result
+
+Avoid:
+
+- user_id
+- request_id
+- receipt_id
+- basket_id
+- email
+
+## Tracing
+
+Ensure trace_id and span_id are present in logs.
+
+This enables:
+
+```text
+Metrics -> Traces -> Logs
+```
+
+## Developer Checklist
+
+- Actuator enabled
+- OpenTelemetry enabled
+- Service name configured
+- Health probes configured
+- JSON logging configured
+- Trace IDs present in logs
+- Business metrics implemented where appropriate

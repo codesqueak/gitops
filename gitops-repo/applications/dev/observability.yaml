@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability
+  namespace: argocd
+spec:
+  project: observability
+
+  source:
+    repoURL: https://github.com/codesqueak/gitops.git
+    targetRevision: main
+    path: gitops-repo/observability/apps
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Application
+      jsonPointers:
+        - /metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

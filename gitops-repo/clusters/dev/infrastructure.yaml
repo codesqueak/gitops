@@ -1,0 +1,14 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+
+metadata:
+  name: infrastructure
+
+spec:
+  source:
+    repoURL: git@github.com:company/platform-gitops.git
+    path: infrastructure
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd

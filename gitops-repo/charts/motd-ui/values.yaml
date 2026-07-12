@@ -1,0 +1,49 @@
+image:
+  repository: ghcr.io/codesqueak/motd-ui
+  tag: latest
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: ghcr-credentials
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+motdBackend:
+  host: motd-dev.app-motd-dev.svc.cluster.local
+  port: 8000
+  # nginx's resolver directive requires an IP, not a hostname (it can't
+  # recursively resolve the resolver itself). This is the kube-dns
+  # ClusterIP in this cluster (kubectl get svc -n kube-system kube-dns).
+  resolver: "10.96.0.10"
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  host: motd-ui.local
+
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "128Mi"
+    cpu: "200m"
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 8080
+  initialDelaySeconds: 3
+  periodSeconds: 5

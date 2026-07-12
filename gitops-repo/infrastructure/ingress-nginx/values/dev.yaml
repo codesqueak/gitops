@@ -1,0 +1,11 @@
+controller:
+  replicaCount: 1
+
+  extraArgs:
+    enable-ssl-passthrough: "true"
+
+  service:
+    type: LoadBalancer
+
+  metrics:
+    enabled: true

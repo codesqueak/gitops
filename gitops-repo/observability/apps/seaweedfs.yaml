@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: seaweedfs
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  project: observability
+
+  sources:
+    - repoURL: https://seaweedfs.github.io/seaweedfs/helm
+      chart: seaweedfs
+      targetRevision: 4.37.0
+      helm:
+        valueFiles:
+          - $values/gitops-repo/observability/seaweedfs/values/dev.yaml
+    - repoURL: https://github.com/codesqueak/gitops.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

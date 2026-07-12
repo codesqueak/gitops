@@ -1,0 +1,128 @@
+# Dev credentials - replace with SSO in production
+adminPassword: admin
+
+# Without this, admin password changes and any UI-created state (dashboards,
+# alert rules, etc.) don't survive a pod restart/recreation - the chart
+# defaults to no persistent storage.
+persistence:
+  enabled: true
+  type: pvc
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+
+# The pod's default securityContext.fsGroup: 472 already gives the grafana
+# user group ownership of the volume at mount time. initChownData's
+# recursive chown is redundant on top of that, and breaks once Grafana has
+# created its own 0700 png/csv/pdf dirs on the volume - its capability set
+# (CHOWN only, no DAC_OVERRIDE) can't traverse into them on a re-chown.
+initChownData:
+  enabled: false
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  hosts:
+    - grafana.local
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Mimir
+        type: prometheus
+        uid: mimir
+        url: http://mimir-gateway.observability.svc.cluster.local/prometheus
+        isDefault: true
+        jsonData:
+          httpMethod: POST
+
+      - name: Loki
+        type: loki
+        uid: loki
+        url: http://loki-gateway.observability.svc.cluster.local
+        jsonData:
+          derivedFields:
+            - name: TraceID
+              matcherRegex: '"traceId":"(\w+)"'
+              url: "$${__value.raw}"
+              datasourceUid: tempo
+
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        url: http://tempo-query-frontend.observability.svc.cluster.local:3200
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: loki
+            filterByTraceID: true
+          serviceMap:
+            datasourceUid: mimir
+          nodeGraph:
+            enabled: true
+          lokiSearch:
+            datasourceUid: loki
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: default
+        orgId: 1
+        folder: ""
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+# Pre-built community dashboards, pulled from grafana.com on pod start.
+# `datasource` is matched by name against the `datasources` block above.
+dashboards:
+  default:
+    node-exporter-full:
+      gnetId: 1860
+      revision: 45
+      datasource: Mimir
+    kubernetes-views-global:
+      gnetId: 15757
+      revision: 43
+      datasource: Mimir
+    # Forked from gnetId 4701 (revision 10): built assuming the classic
+    # micrometer-registry-prometheus + /actuator/prometheus scrape path, whose
+    # Prometheus naming convention pluralizes unit suffixes (jvm_threads_live_threads,
+    # jvm_classes_loaded_classes) and always uses seconds. Our Spring Boot services
+    # use spring-boot-starter-opentelemetry's OtlpMeterRegistry instead, pushed
+    # through Alloy's OTLP receiver -> otelcol.exporter.prometheus converter, which
+    # follows OTel's own naming/unit conventions (jvm_threads_live, jvm_classes_loaded,
+    # jvm_gc_pause_milliseconds_* instead of jvm_gc_pause_seconds_*). Fixed copy at
+    # gitops-repo/observability/grafana/dashboards/jvm-micrometer.json renames every
+    # affected query to the OTel-derived metric name and rescales ms-based values
+    # back to seconds to match each panel's existing unit formatting. The GC "max
+    # pause" panel has no direct equivalent (OTel exports a histogram, not a
+    # summary with _max) - approximated via histogram_quantile(1.0, ...).
+    jvm-micrometer:
+      url: https://raw.githubusercontent.com/codesqueak/gitops/main/gitops-repo/observability/grafana/dashboards/jvm-micrometer.json
+      datasource:
+        - name: DS_PROMETHEUS
+          value: mimir
+    logs-app:
+      gnetId: 13639
+      revision: 2
+      datasource: Loki
+    # Forked from gnetId 24685 (revision 1): every panel hardcodes the
+    # original author's datasource UID (PAE45454D0EDB9216) via the newer
+    # multi-line `"datasource": {"type":..., "uid":...}` object form, which
+    # the chart's single-line sed substitution (the plain `datasource: Mimir`
+    # string form used above) can't rewrite - it requires the whole field on
+    # one line. Fixed copy lives at
+    # gitops-repo/observability/grafana/dashboards/alloy-k8s-microservices.json
+    # with every uid replaced by the token ${MIMIR_UID}, substituted below via
+    # the chart's slice-form datasource mechanism instead - this one works
+    # line-position-independent, so it survives redeployment to any
+    # environment as long as `value` here matches that env's Mimir uid.
+    alloy-k8s-microservices:
+      url: https://raw.githubusercontent.com/codesqueak/gitops/main/gitops-repo/observability/grafana/dashboards/alloy-k8s-microservices.json
+      datasource:
+        - name: MIMIR_UID
+          value: mimir

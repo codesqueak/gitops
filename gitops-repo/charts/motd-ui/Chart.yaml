@@ -1,0 +1,6 @@
+apiVersion: v2
+name: motd-ui
+description: React SPA frontend for Message of the Day, served via nginx with API reverse proxy
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

@@ -1,0 +1,12 @@
+image:
+  tag: "5ba0ec1"
+
+replicaCount: 1
+
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "128Mi"
+    cpu: "200m"

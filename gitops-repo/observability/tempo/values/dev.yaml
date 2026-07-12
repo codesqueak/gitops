@@ -1,0 +1,32 @@
+traces:
+  otlp:
+    grpc:
+      enabled: true
+    http:
+      enabled: true
+
+storage:
+  trace:
+    backend: s3
+    s3:
+      endpoint: seaweedfs-all-in-one.observability.svc.cluster.local:8333
+      bucket: tempo-traces
+      access_key: seaweedfsadmin
+      secret_key: seaweedfsadmin
+      insecure: true
+      forcepathstyle: true
+
+distributor:
+  replicas: 1
+
+ingester:
+  replicas: 1
+
+querier:
+  replicas: 1
+
+queryFrontend:
+  replicas: 1
+
+compactor:
+  replicas: 1

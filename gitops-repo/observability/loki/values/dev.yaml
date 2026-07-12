@@ -1,0 +1,76 @@
+deploymentMode: Distributed
+
+loki:
+  auth_enabled: false
+
+  commonConfig:
+    replication_factor: 1
+
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+  storage:
+    type: s3
+    s3:
+      endpoint: seaweedfs-all-in-one.observability.svc.cluster.local:8333
+      accessKeyId: seaweedfsadmin
+      secretAccessKey: seaweedfsadmin
+      insecure: true
+      s3ForcePathStyle: true
+    bucketNames:
+      chunks: loki-chunks
+      ruler: loki-ruler
+      admin: loki-admin
+
+  limits_config:
+    retention_period: 336h
+
+  compactor:
+    retention_enabled: true
+    delete_request_store: s3
+
+# Zero out SimpleScalable components — not used in Distributed mode
+write:
+  replicas: 0
+read:
+  replicas: 0
+backend:
+  replicas: 0
+
+ingester:
+  replicas: 1
+  zoneAwareReplication:
+    enabled: false
+
+distributor:
+  replicas: 1
+
+querier:
+  replicas: 1
+
+queryFrontend:
+  replicas: 1
+
+queryScheduler:
+  replicas: 1
+
+ruler:
+  replicas: 1
+
+compactor:
+  replicas: 1
+
+indexGateway:
+  replicas: 1
+
+# Disable multi-zone for dev
+memberlist:
+  service:
+    publishNotReadyAddresses: true

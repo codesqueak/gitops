@@ -1,0 +1,201 @@
+<svg viewBox="-16 -16 1232 932" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram of telemetry flow from sources through Alloy, into Mimir, Loki and Tempo, then to SeaweedFS storage and Grafana for visualization.">
+  <title>Observability data flow</title>
+  <style>
+    :root {
+      --canvas: #EEF1F4;
+      --surface: #FFFFFF;
+      --ink: #16202B;
+      --ink-muted: #51606D;
+      --border: #D6DEE3;
+
+      --metrics: #B8752A;
+      --logs: #1A8E7C;
+      --traces: #6F5FC0;
+      --infra: #3E6486;
+
+      --metrics-soft: #B8752A22;
+      --logs-soft: #1A8E7C22;
+      --traces-soft: #6F5FC022;
+      --infra-soft: #3E648622;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --canvas: #10151B;
+        --surface: #171E26;
+        --ink: #E7ECF1;
+        --ink-muted: #93A2AF;
+        --border: #2A3540;
+
+        --metrics: #E3A34C;
+        --logs: #33C2AC;
+        --traces: #A79BE0;
+        --infra: #7FA0C0;
+
+        --metrics-soft: #E3A34C22;
+        --logs-soft: #33C2AC22;
+        --traces-soft: #A79BE022;
+        --infra-soft: #7FA0C022;
+      }
+    }
+
+    .bg { fill: var(--canvas); stroke: var(--border); stroke-width: 1; }
+
+    .node-title {
+      font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+      font-weight: 700;
+      font-size: 16px;
+      fill: var(--ink);
+    }
+
+    .node-sub {
+      font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+      font-size: 12.5px;
+      fill: var(--ink-muted);
+    }
+
+    .arrow-label {
+      font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+      font-size: 11px;
+    }
+
+    .label-plate {
+      fill: var(--surface);
+    }
+  </style>
+
+  <rect class="bg" x="-16" y="-16" width="1232" height="932" rx="8"/>
+
+  <defs>
+    <marker id="arrow-metrics" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--metrics)"/>
+    </marker>
+    <marker id="arrow-logs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--logs)"/>
+    </marker>
+    <marker id="arrow-traces" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--traces)"/>
+    </marker>
+    <marker id="arrow-infra" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--infra)"/>
+    </marker>
+  </defs>
+
+  <!-- ============ ARROWS: sources -> Alloy ============ -->
+  <path d="M170,140 L170,190 Q170,230 600,230" fill="none" stroke="var(--infra)" stroke-width="2" marker-end="url(#arrow-infra)"/>
+  <rect class="label-plate" x="180" y="176" width="192" height="16"/>
+  <text class="arrow-label" x="184" y="188" style="fill:var(--infra)">OTLP: metrics+logs+traces</text>
+
+  <path d="M457,140 L457,190 Q457,230 590,230" fill="none" stroke="var(--metrics)" stroke-width="2" marker-end="url(#arrow-metrics)"/>
+  <rect class="label-plate" x="463" y="176" width="90" height="16"/>
+  <text class="arrow-label" x="467" y="188" style="fill:var(--metrics)">scrape</text>
+
+  <path d="M744,140 L744,190 Q744,230 610,230" fill="none" stroke="var(--metrics)" stroke-width="2" marker-end="url(#arrow-metrics)"/>
+  <rect class="label-plate" x="700" y="176" width="90" height="16"/>
+  <text class="arrow-label" x="704" y="188" style="fill:var(--metrics)">scrape</text>
+
+  <path d="M1031,140 L1031,190 Q1031,230 630,230" fill="none" stroke="var(--logs)" stroke-width="2" marker-end="url(#arrow-logs)"/>
+  <rect class="label-plate" x="960" y="176" width="60" height="16"/>
+  <text class="arrow-label" x="964" y="188" style="fill:var(--logs)">tail</text>
+
+  <!-- ============ ARROWS: Alloy -> backends ============ -->
+  <path d="M540,320 Q450,360 210,410" fill="none" stroke="var(--metrics)" stroke-width="2" marker-end="url(#arrow-metrics)"/>
+  <rect class="label-plate" x="330" y="358" width="100" height="16"/>
+  <text class="arrow-label" x="334" y="370" style="fill:var(--metrics)">remote_write</text>
+
+  <path d="M600,320 L600,410" fill="none" stroke="var(--logs)" stroke-width="2" marker-end="url(#arrow-logs)"/>
+  <rect class="label-plate" x="608" y="358" width="42" height="16"/>
+  <text class="arrow-label" x="612" y="370" style="fill:var(--logs)">push</text>
+
+  <path d="M660,320 Q760,360 990,410" fill="none" stroke="var(--traces)" stroke-width="2" marker-end="url(#arrow-traces)"/>
+  <rect class="label-plate" x="800" y="358" width="90" height="16"/>
+  <text class="arrow-label" x="804" y="370" style="fill:var(--traces)">OTLP export</text>
+
+  <!-- ============ ARROWS: backends -> SeaweedFS (solid = storage write) ============ -->
+  <path d="M210,500 Q250,540 300,590" fill="none" stroke="var(--metrics)" stroke-width="2" marker-end="url(#arrow-metrics)"/>
+  <path d="M600,500 L400,590" fill="none" stroke="var(--logs)" stroke-width="2" marker-end="url(#arrow-logs)"/>
+  <path d="M990,500 Q800,550 460,590" fill="none" stroke="var(--traces)" stroke-width="2" marker-end="url(#arrow-traces)"/>
+
+  <!-- ============ ARROWS: backends -> Grafana (dashed = query) ============ -->
+  <path d="M260,500 Q450,545 780,590" fill="none" stroke="var(--metrics)" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow-metrics)"/>
+  <rect class="label-plate" x="470" y="536" width="72" height="16"/>
+  <text class="arrow-label" x="474" y="548" style="fill:var(--metrics)">PromQL</text>
+
+  <path d="M650,500 Q750,545 850,590" fill="none" stroke="var(--logs)" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow-logs)"/>
+  <rect class="label-plate" x="700" y="536" width="60" height="16"/>
+  <text class="arrow-label" x="704" y="548" style="fill:var(--logs)">LogQL</text>
+
+  <path d="M990,500 L920,590" fill="none" stroke="var(--traces)" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow-traces)"/>
+  <rect class="label-plate" x="925" y="536" width="70" height="16"/>
+  <text class="arrow-label" x="929" y="548" style="fill:var(--traces)">TraceQL</text>
+
+  <!-- ============ ARROW: Grafana -> Engineer ============ -->
+  <path d="M870,680 L870,770" fill="none" stroke="var(--infra)" stroke-width="2" marker-end="url(#arrow-infra)"/>
+  <rect class="label-plate" x="878" y="716" width="150" height="16"/>
+  <text class="arrow-label" x="882" y="728" style="fill:var(--infra)">HTTPS · grafana.local</text>
+
+  <!-- ============ NODES: Sources ============ -->
+  <g>
+    <rect x="40" y="50" width="260" height="90" rx="3" fill="var(--infra-soft)" stroke="var(--infra)" stroke-width="1.5"/>
+    <text class="node-title" x="58" y="86">Spring Boot Services</text>
+    <text class="node-sub" x="58" y="110">OpenTelemetry SDK</text>
+  </g>
+  <g>
+    <rect x="327" y="50" width="260" height="90" rx="3" fill="var(--metrics-soft)" stroke="var(--metrics)" stroke-width="1.5"/>
+    <text class="node-title" x="345" y="86">kube-state-metrics</text>
+    <text class="node-sub" x="345" y="110">Prometheus exposition</text>
+  </g>
+  <g>
+    <rect x="614" y="50" width="260" height="90" rx="3" fill="var(--metrics-soft)" stroke="var(--metrics)" stroke-width="1.5"/>
+    <text class="node-title" x="632" y="86">node-exporter</text>
+    <text class="node-sub" x="632" y="110">Prometheus exposition</text>
+  </g>
+  <g>
+    <rect x="901" y="50" width="260" height="90" rx="3" fill="var(--logs-soft)" stroke="var(--logs)" stroke-width="1.5"/>
+    <text class="node-title" x="919" y="86">Container logs</text>
+    <text class="node-sub" x="919" y="110">stdout / stderr per pod</text>
+  </g>
+
+  <!-- ============ NODE: Alloy ============ -->
+  <g>
+    <rect x="430" y="230" width="340" height="90" rx="3" fill="var(--infra-soft)" stroke="var(--infra)" stroke-width="1.5"/>
+    <text class="node-title" x="448" y="270">Alloy</text>
+    <text class="node-sub" x="448" y="294">receive · scrape · tail · forward</text>
+  </g>
+
+  <!-- ============ NODES: Backends ============ -->
+  <g>
+    <rect x="30" y="410" width="360" height="90" rx="3" fill="var(--metrics-soft)" stroke="var(--metrics)" stroke-width="1.5"/>
+    <text class="node-title" x="48" y="450">Mimir</text>
+    <text class="node-sub" x="48" y="474">PromQL · long-term metrics</text>
+  </g>
+  <g>
+    <rect x="420" y="410" width="360" height="90" rx="3" fill="var(--logs-soft)" stroke="var(--logs)" stroke-width="1.5"/>
+    <text class="node-title" x="438" y="450">Loki</text>
+    <text class="node-sub" x="438" y="474">LogQL · log aggregation</text>
+  </g>
+  <g>
+    <rect x="810" y="410" width="360" height="90" rx="3" fill="var(--traces-soft)" stroke="var(--traces)" stroke-width="1.5"/>
+    <text class="node-title" x="828" y="450">Tempo</text>
+    <text class="node-sub" x="828" y="474">TraceQL · trace search</text>
+  </g>
+
+  <!-- ============ NODES: Sinks ============ -->
+  <g>
+    <rect x="80" y="590" width="500" height="90" rx="3" fill="var(--infra-soft)" stroke="var(--infra)" stroke-width="1.5"/>
+    <text class="node-title" x="98" y="630">SeaweedFS</text>
+    <text class="node-sub" x="98" y="654">S3-compatible object storage — blocks &amp; chunks</text>
+  </g>
+  <g>
+    <rect x="620" y="590" width="500" height="90" rx="3" fill="var(--infra-soft)" stroke="var(--infra)" stroke-width="1.5"/>
+    <text class="node-title" x="638" y="630">Grafana</text>
+    <text class="node-sub" x="638" y="654">Dashboards · Explore · Alerting</text>
+  </g>
+
+  <!-- ============ NODE: Engineer ============ -->
+  <g>
+    <rect x="720" y="770" width="300" height="80" rx="3" fill="var(--surface)" stroke="var(--ink-muted)" stroke-width="1.5"/>
+    <text class="node-title" x="738" y="806">You</text>
+    <text class="node-sub" x="738" y="828">Browser @ grafana.local</text>
+  </g>
+</svg>

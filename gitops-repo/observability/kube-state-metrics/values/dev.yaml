@@ -1,0 +1,11 @@
+collectors:
+  - deployments
+  - replicasets
+  - pods
+  - nodes
+  - namespaces
+  - jobs
+  - horizontalpodautoscalers
+  - persistentvolumeclaims
+  - statefulsets
+  - daemonsets

@@ -1,0 +1,2 @@
+# MetalLB controller and speaker — no custom values needed for L2 mode
+# IP address pool is configured separately in metallb/config/dev/

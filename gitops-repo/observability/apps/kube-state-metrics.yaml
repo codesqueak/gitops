@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-state-metrics
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: observability
+
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-state-metrics
+      targetRevision: 7.5.1
+      helm:
+        valueFiles:
+          - $values/gitops-repo/observability/kube-state-metrics/values/dev.yaml
+    - repoURL: https://github.com/codesqueak/gitops.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

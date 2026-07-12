@@ -1,0 +1,22 @@
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets and local overrides
+*.env
+.env*
+secrets/
+*-secret.yaml
+*-secrets.yaml
+
+# Helm
+charts/*/charts/
+*.tgz
+
+# Kubernetes
+kubeconfig
+kubeconfig.*

@@ -1,0 +1,44 @@
+# All-in-one mode (master + volume + filer + S3 gateway in a single pod) —
+# equivalent to the standalone MinIO deployment it replaces.
+allInOne:
+  enabled: true
+  replicas: 1
+
+  data:
+    type: persistentVolumeClaim
+    size: 20Gi
+
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+    limits:
+      memory: 1Gi
+      cpu: "1"
+
+  # Chart default sets a required podAntiAffinity across nodes, which blocks
+  # scheduling on a single-node kind cluster. Not needed with replicas: 1.
+  affinity: ""
+
+  s3:
+    enabled: true
+    enableAuth: true
+    createBuckets:
+      - name: mimir-blocks
+      - name: mimir-ruler
+      - name: mimir-alertmanager
+      - name: loki-chunks
+      - name: loki-ruler
+      - name: loki-admin
+      - name: tempo-traces
+
+# Dev credentials - replace with secrets management in production
+# Note: the chart's s3-secret.yaml template gates secret creation on this
+# top-level s3.enableAuth, not allInOne.s3.enableAuth — both must be true
+# for the seaweedfs-s3-secret to actually be rendered.
+s3:
+  enableAuth: true
+  credentials:
+    admin:
+      accessKey: seaweedfsadmin
+      secretKey: seaweedfsadmin

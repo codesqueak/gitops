@@ -1,0 +1,6 @@
+hostRootFsMount:
+  enabled: true
+  mountPropagation: HostToContainer
+
+service:
+  port: 9100
