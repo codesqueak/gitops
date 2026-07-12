@@ -11,7 +11,7 @@ spec:
   sources:
     - repoURL: https://seaweedfs.github.io/seaweedfs/helm
       chart: seaweedfs
-      targetRevision: 4.37.0
+      targetRevision: 4.39.0
       helm:
         valueFiles:
           - $values/gitops-repo/observability/seaweedfs/values/dev.yaml
