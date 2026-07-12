@@ -94,7 +94,7 @@ Monitor progress:
 kubectl get pods -n observability -w
 ```
 
-Full readiness takes 3–5 minutes. All pods should reach `1/1 Running` or `2/2 Running`. Expected pod count is approximately 30.
+Full readiness takes 3–5 minutes. All pods should reach `1/1 Running` or `2/2 Running`. Expected pod count is approximately 40.
 
 > **Note:** Loki's `zoneAwareReplication` is disabled in `gitops-repo/observability/loki/values/dev.yaml` (see [Configuration Reference](#configuration-reference) below), so the chart renders a single `loki-ingester` StatefulSet rather than `loki-ingester-zone-a/b/c`. If you see zone-suffixed ingester pods stuck `Pending`, the values file has drifted from this setting — check it before assuming the cluster is at fault.
 
