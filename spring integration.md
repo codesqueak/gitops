@@ -25,11 +25,12 @@ management.endpoint.health.probes.enabled=true
 management.endpoints.web.exposure.include=health,info,metrics
 
 management.opentelemetry.resource-attributes.service.name=${spring.application.name}
-management.opentelemetry.resource-attributes.service.namespace=ecrebo
+management.opentelemetry.resource-attributes.service.namespace=codesqueak
 management.opentelemetry.resource-attributes.deployment.environment=${ENVIRONMENT:dev}
 
 management.otlp.metrics.export.enabled=true
 management.otlp.metrics.export.url=http://alloy.observability.svc.cluster.local:4318/v1/metrics
+management.metrics.tags.application=${spring.application.name}
 
 management.otlp.tracing.endpoint=http://alloy.observability.svc.cluster.local:4318/v1/traces
 
@@ -39,28 +40,47 @@ management.otlp.tracing.endpoint=http://alloy.observability.svc.cluster.local:43
 management.tracing.sampling.probability=1.0
 ```
 
+`management.metrics.tags.application` is what the JVM (Micrometer) dashboard's app picker filters on - without
+it the picker resolves to empty even though metrics are flowing. See
+[install-observability.md](install-observability.md#dashboard-fixes) for the full story.
+
+`management.endpoint.health.probes.enabled` and `management.otlp.metrics.export.enabled` both default to
+`true` already (Spring Boot enables health probes automatically once it detects it's running on Kubernetes,
+and the OTLP metrics exporter is enabled by default once the dependency is on the classpath) - setting them
+explicitly here is belt-and-braces, not strictly required, but keeps behavior from silently changing if the
+app is ever run somewhere that isn't detected as Kubernetes (e.g. plain `docker run`/docker-compose).
+
 ## Kubernetes Configuration
 
-Add:
+`motd`'s chart (`gitops-repo/charts/motd/values.yaml`) only sets `SPRING_PROFILES_ACTIVE`, not `ENVIRONMENT`:
 
 ```yaml
 env:
-  - name: ENVIRONMENT
-    value: production
+  - name: SPRING_PROFILES_ACTIVE
+    value: "prod"
 ```
 
+Because of this, `${ENVIRONMENT:dev}` above always falls back to its default - `deployment.environment` and
+the logback `environment` field both report `dev` in every environment today, regardless of Spring profile.
+If a service needs `deployment.environment` to reflect its actual deployment tier (staging/prod, etc.), add
+an explicit `ENVIRONMENT` env var to that service's chart values - this project just doesn't do so yet, since
+everything currently only runs in `dev`.
+
 ## Health Probes
+
+Use whichever port the service actually listens on (see [port-usage.md](port-usage.md) for the allocated
+port per service - `motd` is `8000`, not the Spring Boot default of `8080`):
 
 ```yaml
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness
-    port: 8080
+    port: 8000
 
 livenessProbe:
   httpGet:
     path: /actuator/health/liveness
-    port: 8080
+    port: 8000
 ```
 
 ## Structured Logging
