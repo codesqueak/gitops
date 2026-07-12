@@ -85,7 +85,7 @@ The project is split into three distinct areas:
 [![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)](https://react.dev/)
 
 1. A [Message of the Day server](https://github.com/codesqueak/motd) - Java / Spring Boot 4
-2. A UI to present messages - React
+2. A [UI to present messages](https://github.com/codesqueak/motd-ui) - React
 
 
 
