@@ -26,7 +26,7 @@ The project is split into three distinct areas:
 
 1. Getting Kubernetes up and running, with associated tooling — see [install-kubernetes.md](install-kubernetes.md)
 2. Deployment of an observability environment in Kubernetes — see [install-observability.md](install-observability.md)
-3. Deployment of the application services
+3. Deployment of the application services — see [install-motd.md](install-motd.md)
 
 ## 3. Technology
 
