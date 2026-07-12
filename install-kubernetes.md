@@ -610,7 +610,7 @@ Recreate the cluster:
 ```bash
 kind create cluster \
   --name dev \
-  --image kindest/node:v1.33.1
+  --image kindest/node:v1.36.1
 ```
 
 ---
