@@ -6,7 +6,7 @@ You are acting as a devops infrastructure engineer
 
 - This project is a gitops project
 - This project uses kubernetes, docker, docker compose, helm, argocd, open telemetry, grafana, mimir, tempo, loki, otel-collector
-- Services deployed by this project are build using spring boot 4
+- Services deployed by this project are build using spring boot 4 and React
 
 ## Other
 
