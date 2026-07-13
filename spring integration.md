@@ -50,12 +50,14 @@ in the service's Helm chart instead, so retuning them is a gitops config change,
 ## Kubernetes Configuration
 
 `motd`'s chart (`gitops-repo/charts/motd/values.yaml`) sets the env vars for everything called out above as
-"deliberately not in application.properties", plus `SPRING_PROFILES_ACTIVE` (not `ENVIRONMENT` - see below):
+"deliberately not in application.properties", plus `SPRING_PROFILES_ACTIVE` and `ENVIRONMENT`:
 
 ```yaml
 env:
   - name: SPRING_PROFILES_ACTIVE
     value: "prod"
+  - name: ENVIRONMENT
+    value: "dev"
   - name: SPRING_APPLICATION_JSON
     value: '{"management":{"metrics":{"distribution":{"percentiles-histogram":{"http.server.requests":true,"jvm.gc.pause":true}}},"opentelemetry":{"resource-attributes":{"service.namespace":"codesqueak"}}}}'
   - name: MANAGEMENT_OTLP_METRICS_EXPORT_URL
@@ -73,11 +75,12 @@ would otherwise have no `trace_id`/`span_id`. Tune this down per-environment for
 service once traffic volume is known; that's the point of it living in gitops rather than the app repo - no
 rebuild needed to retune it.
 
-Because `ENVIRONMENT` isn't set, `${ENVIRONMENT:dev}` above always falls back to its default - `deployment.environment` and
-the logback `environment` field both report `dev` in every environment today, regardless of Spring profile.
-If a service needs `deployment.environment` to reflect its actual deployment tier (staging/prod, etc.), add
-an explicit `ENVIRONMENT` env var to that service's chart values - this project just doesn't do so yet, since
-everything currently only runs in `dev`.
+`ENVIRONMENT` is now set explicitly (2026-07-13) so `${ENVIRONMENT:dev}` above resolves from the real env var
+rather than silently falling back to its default - `deployment.environment` and the logback `environment`
+field both genuinely reflect the deployment tier rather than coincidentally matching it. It happens to be
+`"dev"` today because that's the only tier this project runs in; when a staging/prod environment is added,
+that environment's own `motd-values.yaml` should override it accordingly (this is a flat scalar property, so
+a plain env var is sufficient - no `SPRING_APPLICATION_JSON` needed).
 
 ### How env vars bind to Spring config
 
