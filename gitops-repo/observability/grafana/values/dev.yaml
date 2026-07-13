@@ -141,9 +141,25 @@ dashboards:
       datasource:
         - name: DS_PROMETHEUS
           value: mimir
+    # Forked from gnetId 13639 (revision 2): the Logs panel hardcoded a
+    # `| logfmt` parser stage on every query regardless of which app's logs
+    # are selected. This cluster's apps use inconsistent log formats - motd
+    # (Spring Boot) emits JSON, motd-ui emits nginx/Apache combined access-log
+    # format, only infra components (e.g. Alloy itself) are actually logfmt.
+    # Checked live (2026-07-13): `| logfmt` doesn't drop JSON lines (the raw
+    # text still renders), but it silently mis-parses fragments of the JSON as
+    # fake key=value pairs (confirmed a garbage extracted label pulled from
+    # inside a JSON string value) rather than failing cleanly. No single
+    # parser stage (`logfmt` or `json`) is correct for every app in this
+    # cluster, so the fix removes the parser stage entirely - the raw log
+    # line always displays correctly regardless of format; only Grafana's
+    # "detected fields" sidebar loses the (already-wrong) structured
+    # extraction. Still uses the plain-string `datasource: Loki` substitution
+    # below - this dashboard's `"datasource": "${DS_LOKI}",` field is already
+    # single-line, so unlike the Alloy K8S Microservices dashboard, no
+    # slice-form/token workaround was ever needed here.
     logs-app:
-      gnetId: 13639
-      revision: 2
+      url: https://raw.githubusercontent.com/codesqueak/gitops/main/gitops-repo/observability/grafana/dashboards/logs-app.json
       datasource: Loki
     # Forked from gnetId 24685 (revision 1): every panel hardcodes the
     # original author's datasource UID (PAE45454D0EDB9216) via the newer
