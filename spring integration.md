@@ -22,22 +22,12 @@ dependencies {
 spring.application.name=customer-service
 
 management.endpoint.health.probes.enabled=true
-management.endpoints.web.exposure.include=health,info,metrics
 
 management.opentelemetry.resource-attributes.service.name=${spring.application.name}
-management.opentelemetry.resource-attributes.service.namespace=codesqueak
 management.opentelemetry.resource-attributes.deployment.environment=${ENVIRONMENT:dev}
 
 management.otlp.metrics.export.enabled=true
-management.otlp.metrics.export.url=http://alloy.observability.svc.cluster.local:4318/v1/metrics
 management.metrics.tags.application=${spring.application.name}
-
-management.otlp.tracing.endpoint=http://alloy.observability.svc.cluster.local:4318/v1/traces
-
-# Default sampling is 10% (management.tracing.sampling.probability=0.1) — most log lines
-# would have no trace_id/span_id. Set to 1.0 for low-traffic dev/staging services; tune
-# down for high-throughput production services once traffic volume is known.
-management.tracing.sampling.probability=1.0
 ```
 
 `management.metrics.tags.application` is what the JVM (Micrometer) dashboard's app picker filters on - without
@@ -50,17 +40,40 @@ and the OTLP metrics exporter is enabled by default once the dependency is on th
 explicitly here is belt-and-braces, not strictly required, but keeps behavior from silently changing if the
 app is ever run somewhere that isn't detected as Kubernetes (e.g. plain `docker run`/docker-compose).
 
+**Deliberately not here**: the OTLP endpoints (`management.otlp.metrics.export.url`,
+`management.otlp.tracing.endpoint`), `management.opentelemetry.resource-attributes.service.namespace`,
+`management.tracing.sampling.probability`, and `management.endpoints.web.exposure.include`. These are infra
+addresses, platform-wide constants, and ops tuning knobs rather than app decisions - they're set as env vars
+in the service's Helm chart instead, so retuning them is a gitops config change, not an app rebuild. See
+[Kubernetes Configuration](#kubernetes-configuration) below.
+
 ## Kubernetes Configuration
 
-`motd`'s chart (`gitops-repo/charts/motd/values.yaml`) only sets `SPRING_PROFILES_ACTIVE`, not `ENVIRONMENT`:
+`motd`'s chart (`gitops-repo/charts/motd/values.yaml`) sets the env vars for everything called out above as
+"deliberately not in application.properties", plus `SPRING_PROFILES_ACTIVE` (not `ENVIRONMENT` - see below):
 
 ```yaml
 env:
   - name: SPRING_PROFILES_ACTIVE
     value: "prod"
+  - name: SPRING_APPLICATION_JSON
+    value: '{"management":{"metrics":{"distribution":{"percentiles-histogram":{"http.server.requests":true,"jvm.gc.pause":true}}},"opentelemetry":{"resource-attributes":{"service.namespace":"codesqueak"}}}}'
+  - name: MANAGEMENT_OTLP_METRICS_EXPORT_URL
+    value: "http://alloy.observability.svc.cluster.local:4318/v1/metrics"
+  - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+    value: "http://alloy.observability.svc.cluster.local:4318/v1/traces"
+  - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+    value: "1.0"
+  - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+    value: "health,info,metrics"
 ```
 
-Because of this, `${ENVIRONMENT:dev}` above always falls back to its default - `deployment.environment` and
+Default sampling here is `1.0` (100%) - fine for a low-traffic dev/staging service, where most log lines
+would otherwise have no `trace_id`/`span_id`. Tune this down per-environment for a high-throughput production
+service once traffic volume is known; that's the point of it living in gitops rather than the app repo - no
+rebuild needed to retune it.
+
+Because `ENVIRONMENT` isn't set, `${ENVIRONMENT:dev}` above always falls back to its default - `deployment.environment` and
 the logback `environment` field both report `dev` in every environment today, regardless of Spring profile.
 If a service needs `deployment.environment` to reflect its actual deployment tier (staging/prod, etc.), add
 an explicit `ENVIRONMENT` env var to that service's chart values - this project just doesn't do so yet, since
