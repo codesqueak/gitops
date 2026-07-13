@@ -104,15 +104,82 @@ alloy:
         forward_to = [loki.write.default.receiver]
       }
 
-      // Scrape kube-state-metrics
+      // Scrape kube-state-metrics. Endpoint-based discovery (rather than the
+      // previous hardcoded "kube-state-metrics.observability...:8080" Service
+      // DNS name) for the same portability reason as node-exporter below -
+      // the chart always labels its Service "app.kubernetes.io/name:
+      // kube-state-metrics" regardless of the Helm release/ArgoCD
+      // Application name, so this still finds it if a template user renames
+      // the "kube-state-metrics" Application. The old address happened to
+      // still work today only because the Application name coincides with
+      // the chart name; it was never guaranteed to. No DaemonSet
+      // under-scraping risk here (unlike node-exporter) since this runs as
+      // a single-replica Deployment, but the naming fragility is identical.
+      discovery.kubernetes "kube_state_metrics" {
+        role = "endpoints"
+        namespaces {
+          names = ["observability"]
+        }
+      }
+
+      discovery.relabel "kube_state_metrics" {
+        targets = discovery.kubernetes.kube_state_metrics.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_service_label_app_kubernetes_io_name"]
+          regex         = "kube-state-metrics"
+          action        = "keep"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_endpoint_port_name"]
+          regex         = "http"
+          action        = "keep"
+        }
+      }
+
       prometheus.scrape "kube_state_metrics" {
-        targets    = [{"__address__" = "kube-state-metrics.observability.svc.cluster.local:8080"}]
+        targets    = discovery.relabel.kube_state_metrics.output
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
-      // Scrape node-exporter
+      // Scrape node-exporter. Endpoint-based discovery (rather than the
+      // previous hardcoded "<release>-prometheus-node-exporter" Service DNS
+      // name) is used for two reasons: portability - the chart always labels
+      // its Service "app.kubernetes.io/name: prometheus-node-exporter"
+      // regardless of the Helm release/ArgoCD Application name, so this
+      // still finds it if a template user renames the "node-exporter"
+      // Application (a hardcoded FQDN wouldn't - that's exactly how this
+      // scrape target broke once already, see install-observability.md);
+      // and correctness - node-exporter runs as a DaemonSet (one pod per
+      // node), so scraping the Service's ClusterIP only ever lands on
+      // whichever single pod kube-proxy routes that connection to, silently
+      // dropping every other node's metrics (confirmed: every node_cpu_seconds_total
+      // series carried the same single "instance" label instead of one per
+      // node). Discovering each pod's endpoint individually scrapes every node.
+      discovery.kubernetes "node_exporter" {
+        role = "endpoints"
+        namespaces {
+          names = ["observability"]
+        }
+      }
+
+      discovery.relabel "node_exporter" {
+        targets = discovery.kubernetes.node_exporter.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_service_label_app_kubernetes_io_name"]
+          regex         = "prometheus-node-exporter"
+          action        = "keep"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_endpoint_port_name"]
+          regex         = "metrics"
+          action        = "keep"
+        }
+      }
+
       prometheus.scrape "node_exporter" {
-        targets    = [{"__address__" = "node-exporter-prometheus-node-exporter.observability.svc.cluster.local:9100"}]
+        targets    = discovery.relabel.node_exporter.output
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 

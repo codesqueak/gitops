@@ -84,10 +84,32 @@ dashboards:
       gnetId: 1860
       revision: 45
       datasource: Mimir
+    # Forked from gnetId 15757 (revision 43): every panel filters on the
+    # dashboard's own `$job` template variable using equality (`job="$job"`),
+    # but `$job` is declared `multi: true` - Grafana always regex-escapes
+    # multi-enabled variables on interpolation, even with a single value
+    # selected, on the assumption they're used with `=~`. Alloy's default job
+    # label for a `prometheus.scrape "node_exporter"` block is the dotted
+    # component path (`prometheus.scrape.node_exporter`), and the escaper
+    # turns those dots into `\.` for regex-safety - which then never equals
+    # the real (unescaped) label value under `=`. Every node-exporter-sourced
+    # panel (CPU/Memory Utilization - cluster/by instance, network, global
+    # gauges) went blank as a result; cAdvisor-sourced panels (by namespace)
+    # were unaffected since they don't filter on `$job` at all. This wouldn't
+    # reproduce against stock kube-prometheus-stack, whose node-exporter job
+    # is plainly "node-exporter" (no regex metacharacters, so the escaping is
+    # a no-op) - it's specific to Alloy's naming convention, but since job
+    # names are free text, no naming choice is guaranteed safe against this
+    # class of bug. Fixed copy at
+    # gitops-repo/observability/grafana/dashboards/kubernetes-views-global.json
+    # changes every `job="$job"` to `job=~"$job"` (25 occurrences) so it's
+    # correct for `$job` matching any value, single or multi. No datasource
+    # substitution needed here - unlike the other forked dashboards below,
+    # every panel already uses the dashboard's own `${datasource}` template
+    # variable rather than a hardcoded string/UID, so it resolves to whichever
+    # Prometheus-type datasource exists (Mimir) without any chart-side sed step.
     kubernetes-views-global:
-      gnetId: 15757
-      revision: 43
-      datasource: Mimir
+      url: https://raw.githubusercontent.com/codesqueak/gitops/main/gitops-repo/observability/grafana/dashboards/kubernetes-views-global.json
     # Forked from gnetId 4701 (revision 10): built assuming the classic
     # micrometer-registry-prometheus + /actuator/prometheus scrape path, whose
     # Prometheus naming convention pluralizes unit suffixes (jvm_threads_live_threads,
