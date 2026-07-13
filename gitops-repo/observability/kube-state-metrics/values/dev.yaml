@@ -1,3 +1,9 @@
+# Explicit allow-list, not the chart's default full set - anything not listed
+# here is never collected. The Alloy K8S Microservices dashboard's "Namespace
+# Resource Statistics" panel counts kube_service_info/kube_configmap_info/
+# kube_secret_info per namespace (2026-07-13); those three collectors weren't
+# in this list, so 3 of its 5 series were permanently blank even though
+# kube-state-metrics itself was healthy.
 collectors:
   - deployments
   - replicasets
@@ -9,3 +15,6 @@ collectors:
   - persistentvolumeclaims
   - statefulsets
   - daemonsets
+  - configmaps
+  - secrets
+  - services
