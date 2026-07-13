@@ -12,7 +12,15 @@ env:
   - name: SPRING_PROFILES_ACTIVE
     value: "prod"
   - name: SPRING_APPLICATION_JSON
-    value: '{"management":{"metrics":{"distribution":{"percentiles-histogram":{"http.server.requests":true,"jvm.gc.pause":true}}}}}'
+    value: '{"management":{"metrics":{"distribution":{"percentiles-histogram":{"http.server.requests":true,"jvm.gc.pause":true}}},"opentelemetry":{"resource-attributes":{"service.namespace":"codesqueak"}}}}'
+  - name: MANAGEMENT_OTLP_METRICS_EXPORT_URL
+    value: "http://alloy.observability.svc.cluster.local:4318/v1/metrics"
+  - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+    value: "http://alloy.observability.svc.cluster.local:4318/v1/traces"
+  - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+    value: "1.0"
+  - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+    value: "health,info,metrics"
 
 service:
   type: ClusterIP
