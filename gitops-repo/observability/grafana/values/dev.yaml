@@ -36,6 +36,19 @@ datasources:
         isDefault: true
         jsonData:
           httpMethod: POST
+          # Grafana assumes a 15s scrape interval when this is unset, and uses
+          # it to compute $__rate_interval (max($__interval + this, 4 * this))
+          # for every rate()/irate() panel query. Alloy's actual scrape_interval
+          # default is 60s (confirmed empirically - node_cpu_seconds_total only
+          # changes value every 60s), so the unset default made Grafana compute
+          # a 1-minute rate window - exactly equal to the real scrape gap, so
+          # most evaluation points caught 0-1 raw samples instead of the 2
+          # rate() needs, silently emptying every rate()-based panel (Node
+          # Exporter Full's CPU/Network Basic panels going blank while
+          # non-rate() gauge panels like Memory/Disk Basic kept working was the
+          # symptom that surfaced this, 2026-07-13). Set to match Alloy's real
+          # cadence; if Alloy's scrape_interval is ever changed, update this too.
+          timeInterval: 60s
 
       - name: Loki
         type: loki
