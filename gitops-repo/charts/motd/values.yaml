@@ -11,10 +11,8 @@ replicaCount: 1
 env:
   - name: SPRING_PROFILES_ACTIVE
     value: "prod"
-  - name: MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILES_HISTOGRAM_HTTP_SERVER_REQUESTS
-    value: "true"
-  - name: MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILES_HISTOGRAM_JVM_GC_PAUSE
-    value: "true"
+  - name: SPRING_APPLICATION_JSON
+    value: '{"management":{"metrics":{"distribution":{"percentiles-histogram":{"http.server.requests":true,"jvm.gc.pause":true}}}}}'
 
 service:
   type: ClusterIP
