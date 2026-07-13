@@ -66,6 +66,42 @@ If a service needs `deployment.environment` to reflect its actual deployment tie
 an explicit `ENVIRONMENT` env var to that service's chart values - this project just doesn't do so yet, since
 everything currently only runs in `dev`.
 
+### How env vars bind to Spring config
+
+Charts configure Spring Boot purely through env vars - no mounted `application.yml`, no `-D` flags. Two
+different binding paths apply depending on the property being set:
+
+- **Plain, flat properties** (`spring.application.name`, `spring.profiles.active`,
+  `management.tracing.sampling.probability`, etc.) bind directly via Spring's relaxed `SCREAMING_SNAKE_CASE`
+  convention - `SPRING_PROFILES_ACTIVE=prod` maps straight onto `spring.profiles.active`. This is reliable
+  for any single-value property and is what every env var in this guide uses except one.
+
+- **`Map`-typed properties whose keys are dynamic and dotted are not reliable to set this way.** Relaxed
+  binding has to guess where an env var's underscores become dots vs. dashes, and for some properties that
+  guess is genuinely ambiguous - most notably `management.metrics.distribution.percentiles-histogram.<meter-id>`
+  (`Map<String, Boolean>`), whose name is a word-prefix of the sibling `management.metrics.distribution.percentiles.<meter-id>`
+  (`Map<String, double[]>`). Setting `MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILES_HISTOGRAM_HTTP_SERVER_REQUESTS=true`
+  actually binds into the wrong property and crashes the app on boot (`UnsatisfiedDependencyException`,
+  trying to convert `"true"` into a `double[]`) - this happened for real in `motd`; see
+  [install-observability.md](install-observability.md#how-motds-two-env-vars-reach-spring-boot-config) for
+  the full incident. Other properties in the same risk class: `management.metrics.tags.*`,
+  `logging.level.*`, `spring.jpa.properties.*` - anywhere the map's keys are meter IDs, logger names, or
+  other dotted identifiers the app doesn't control.
+
+  For these, set `SPRING_APPLICATION_JSON` instead of individual env vars. Spring Boot's
+  `SpringApplicationJsonEnvironmentPostProcessor` parses it as literal JSON - preserving dots/dashes in keys
+  exactly as written - and installs it as a high-precedence `PropertySource` before relaxed env-var binding
+  ever gets a chance to misparse a key:
+
+  ```yaml
+  env:
+    - name: SPRING_APPLICATION_JSON
+      value: '{"management":{"metrics":{"distribution":{"percentiles-histogram":{"http.server.requests":true}}}}}'
+  ```
+
+  If in doubt whether a property you're adding falls into the risky bucket: check whether its target type is
+  a `Map` with keys the app doesn't control. If so, use `SPRING_APPLICATION_JSON`, not a plain env var.
+
 ## Health Probes
 
 Use whichever port the service actually listens on (see [port-usage.md](port-usage.md) for the allocated
