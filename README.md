@@ -5,7 +5,7 @@ I found that setting up a production-like environment was considerably more diff
 preconfigured Grafana dashboards seemed to always come with their fair share of issues.
 
 After going through considerable effort to get an environment working, I decided to document it, as having a fully constructed working example
-is amazingly useful when trying to attempt something. Hopefully others who tread this path after me will hopefully find this to be a useful guide. 
+is amazingly useful when trying to attempt something. Hopefully others who tread this path after me will find this to be a useful guide. 
 
 Consider this a glorified Hello World!
 
