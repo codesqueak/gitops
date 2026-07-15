@@ -1,10 +1,11 @@
 # A Practical Demonstration of Developing Against a Kubernetes Environment
 
-This project was developed as a side project to something else I was building (The Panopticon - the main project on this GitHub site).
-I found that setting up a production-like environment was considerably more difficult than it initially appeared from the relevant documentation.
+This project was developed as an aside to something else I was building.
+I found that setting up a production-like environment was considerably more difficult than it initially appeared from the relevant documentation and
+preconfigured Grafana dashboards seemed to always come with their fair share of issues.
 
 After going through considerable effort to get an environment working, I decided to document it, as having a fully constructed working example
-is amazingly useful when trying to attempt something. Hopefully others who tread this path after me will find this guide useful. 
+is amazingly useful when trying to attempt something. Hopefully others who tread this path after me will hopefully find this to be a useful guide. 
 
 Consider this a glorified Hello World!
 
@@ -88,4 +89,21 @@ The project is split into three distinct areas:
 2. A [UI to present messages](https://github.com/codesqueak/motd-ui) - React
 
 
+## 4. Screen Shots
 
+### MOTD Application
+
+![Application Light](docs/light%20message.png)
+![Application Dark](docs/dark%20message.png) 
+
+### Grafana Dashboards
+
+![Microservice Dashboard](docs/microservice%20dashboard.png)
+![JVM Dashboard](docs/jvm%20dashboard.png)
+![Kubernetes Dashboard](docs/k8s%20dashboard.png)
+![Log Dashboard](docs/log%20dashboard.png)
+![Node Dashboard](docs/node%20dashboard.png)
+
+### ArgoCD
+
+![ArgoCD Control Panel](docs/argocd%20control%20panel.png)
