@@ -1,4 +1,4 @@
-# A Practical Demonstration of Developing Against a Kubernetes Environment
+# GitOps on Kubernetes: A Practical Demonstration with ArgoCD, Helm, Docker, and Full Observability (Grafana, Mimir, Tempo, Loki, OpenTelemetry)
 
 This project was developed as an aside to something else I was building.
 I found that setting up a production-like environment was considerably more difficult than it initially appeared from the relevant documentation and
